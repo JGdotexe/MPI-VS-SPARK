@@ -1,0 +1,4 @@
+Executando com 8 processos MPI.
+Iniciando multiplicação de matriz 4000x4000...
+Multiplicação concluída.
+Tempo de execução: 0.4071 segundos
