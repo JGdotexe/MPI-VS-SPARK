@@ -1,33 +1,50 @@
+import sys
+import pandas as pd
 import matplotlib.pyplot as plt
 
-# 1. Preencha estes dados com os resultados da sua tabela!
-processos = [1, 2, 4, 8]
-tempos_mpi = [
-    0.1431, # Substitua pelo seu tempo médio com 1 processo
-    0.1136, # Substitua pelo seu tempo médio com 2 processos
-    0.0874,# Substitua pelo seu tempo médio com 4 processos
-    0.3757   # Substitua pelo seu tempo médio com 8 processos
-]
-tempo_spark = 2.18 # O tempo que você mediu para o Spark
+def gerar_grafico(arquivo_resultados, arquivo_saida):
+    """
+    Lê um arquivo CSV com os resultados e gera um gráfico de comparação.
+    """
+    try:
+        df = pd.read_csv(arquivo_resultados)
+    except FileNotFoundError:
+        print(f"Erro: Arquivo de resultados '{arquivo_resultados}' não encontrado.", file=sys.stderr)
+        sys.exit(1)
 
-# 2. Criar o gráfico
-plt.figure(figsize=(10, 6))
-plt.plot(processos, tempos_mpi, marker='o', linestyle='-', label='MPI (mpi4py)')
+    # Calcula a média para cada grupo
+    df_avg = df.groupby(['Framework', 'Processos'])['TempoExecucao_s'].mean().reset_index()
 
-# Adiciona uma linha horizontal para o Spark para comparação
-plt.axhline(y=tempo_spark, color='r', linestyle='--', label=f'Spark (PySpark) - {tempo_spark:.2f}s')
+    # Separa os dados de MPI e Spark
+    mpi_data = df_avg[df_avg['Framework'] == 'MPI'].sort_values('Processos')
+    spark_data = df_avg[df_avg['Framework'] == 'Spark']
 
-# 3. Melhorar a aparência do gráfico
-plt.title('Comparação de Desempenho: MPI vs. Spark\n(Multiplicação de Matriz 4000x4000 Localmente)')
-plt.xlabel('Número de Processos')
-plt.ylabel('Tempo de Execução (segundos)')
-plt.xticks(processos) # Garante que o eixo X mostre 1, 2, 4, 8
-plt.grid(True)
-plt.legend()
+    # Pega o tempo médio do Spark
+    spark_avg_time = spark_data['TempoExecucao_s'].iloc[0]
+    spark_cores = spark_data['Processos'].iloc[0]
 
-# Inverte o eixo Y para que "melhor" (menos tempo) seja "mais alto" - opcional, mas legal
-# plt.gca().invert_yaxis()
+    # Cria o gráfico
+    plt.figure(figsize=(12, 7))
+    plt.plot(mpi_data['Processos'], mpi_data['TempoExecucao_s'], marker='o', linestyle='-', label='MPI (Média)')
+    
+    plt.axhline(y=spark_avg_time, color='r', linestyle='--', label=f'Spark ({spark_cores} cores) - Média: {spark_avg_time:.4f}s')
 
-# 4. Salvar o gráfico em um arquivo
-plt.savefig('comparacao_desempenho_local.png')
-print("Gráfico 'comparacao_desempenho_local.png' foi salvo!")
+    # Melhora a aparência
+    plt.title('Comparação de Desempenho: MPI vs. Spark\n(Multiplicação de Matriz no Cluster da Universidade)')
+    plt.xlabel('Número de Processos')
+    plt.ylabel('Tempo de Execução Médio (segundos)')
+    plt.xticks(mpi_data['Processos'])
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.legend()
+    plt.yscale('log') # Escala logarítmica é ótima para ver grandes diferenças
+    
+    # Salva o gráfico
+    plt.savefig(arquivo_saida)
+    print(f"Gráfico salvo com sucesso em '{arquivo_saida}'")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Uso: python gerar_grafico.py <arquivo_resultados.csv> <arquivo_saida.png>", file=sys.stderr)
+        sys.exit(1)
+    
+    gerar_grafico(sys.argv[1], sys.argv[2])
